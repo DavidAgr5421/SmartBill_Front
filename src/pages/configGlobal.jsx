@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import api from '../api/apiClient';
 
 const ConfigGlobal = () => {
   const [config, setConfig] = useState({
     id: null,
-    name: 'Configuración Principal',
-    companyName: '',
-    taxId: '',
-    address: '',
-    phone: '',
-    email: '',
-    tax: '',
-    invoiceFooter: ''
+    configName: '',
+    nit: '',
+    contact: '',
+    footer: '',
+    paperWidth: 80,
+    fontSize: 12,
+    logoType: 'IMAGE',
+    qrType: 'PAYMENT'
   });
 
   const [savedConfigs, setSavedConfigs] = useState([]);
   const [activeConfigId, setActiveConfigId] = useState(null);
   const [showConfigList, setShowConfigList] = useState(false);
-  const [configNameInput, setConfigNameInput] = useState('');
-  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [notification, setNotification] = useState({
     show: false,
@@ -27,35 +27,53 @@ const ConfigGlobal = () => {
 
   const [errors, setErrors] = useState({});
 
+  const API_BASE_URL = 'http://localhost:8080/config/v1/api';
+
   useEffect(() => {
     loadConfigurations();
   }, []);
 
-  const loadConfigurations = () => {
+  const getAuthToken = () => {
+    // Obtener el token de autenticación desde tu contexto o localStorage
+    return localStorage.getItem('authToken') || '';
+  };
+
+  const loadConfigurations = async () => {
+    setLoading(true);
     try {
-      const configs = JSON.parse(window.localStorage.getItem('smartbill_configs') || '[]');
-      const activeId = window.localStorage.getItem('smartbill_active_config');
+      const token = getAuthToken();
+      const response = await api.get(API_BASE_URL, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: 0,
+          size: 1000
+        }
+      });
+      const configs = response.data.content || [];
+      setSavedConfigs(configs);
+
+      const savedActiveId = localStorage.getItem('smartbill_active_config_id');
       
-      setSavedConfigs(configs); 
-      
-      if (activeId && configs.length > 0) {
-        const activeConfig = configs.find(c => c.id === activeId);
+      if (savedActiveId && configs.length > 0) {
+        const activeConfig = configs.find(c => c.id?.toString() === savedActiveId);
         if (activeConfig) {
           setConfig(activeConfig);
-          setActiveConfigId(activeId);
+          setActiveConfigId(activeConfig.id);
         } else if (configs.length > 0) {
           setConfig(configs[0]);
           setActiveConfigId(configs[0].id);
-          window.localStorage.setItem('smartbill_active_config', configs[0].id);
+          localStorage.setItem('smartbill_active_config_id', configs[0].id.toString());
         }
       } else if (configs.length > 0) {
         setConfig(configs[0]);
         setActiveConfigId(configs[0].id);
-        window.localStorage.setItem('smartbill_active_config', configs[0].id);
+        localStorage.setItem('smartbill_active_config_id', configs[0].id.toString());
       }
     } catch (error) {
       console.error('Error al cargar configuraciones:', error);
-      showNotification('error', 'Error al cargar las configuraciones');
+      showNotification('error', 'Error al cargar las configuraciones desde el servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,7 +95,7 @@ const ConfigGlobal = () => {
     const newErrors = {};
     let isValid = true;
 
-    const requiredFields = ['companyName', 'taxId', 'address', 'phone', 'email', 'tax'];
+    const requiredFields = ['configName', 'nit', 'contact'];
     
     requiredFields.forEach(field => {
       if (!config[field] || !config[field].toString().trim()) {
@@ -87,13 +105,18 @@ const ConfigGlobal = () => {
     });
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (config.email && !emailRegex.test(config.email)) {
-      newErrors.email = true;
+    if (config.contact && !emailRegex.test(config.contact)) {
+      newErrors.contact = true;
       isValid = false;
     }
 
-    if (config.tax && (config.tax < 0 || config.tax > 100)) {
-      newErrors.tax = true;
+    if (config.paperWidth && (config.paperWidth < 58 || config.paperWidth > 80)) {
+      newErrors.paperWidth = true;
+      isValid = false;
+    }
+
+    if (config.fontSize && (config.fontSize < 8 || config.fontSize > 16)) {
+      newErrors.fontSize = true;
       isValid = false;
     }
 
@@ -101,128 +124,133 @@ const ConfigGlobal = () => {
     return isValid;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      saveConfiguration();
-    } else {
-      showNotification('error', 'Por favor complete todos los campos requeridos correctamente');
-    }
-  };
-
-  const saveConfiguration = () => {
-    try {
-      let configs = [...savedConfigs];
-      let configToSave = { ...config };
-
-      if (configToSave.id) {
-        const index = configs.findIndex(c => c.id === configToSave.id);
-        if (index !== -1) {
-          configs[index] = configToSave;
-        } else {
-          configs.push(configToSave);
-        }
-      } else {
-        configToSave.id = Date.now().toString();
-        configs.push(configToSave);
-      }
-
-      window.localStorage.setItem('smartbill_configs', JSON.stringify(configs));
-      window.localStorage.setItem('smartbill_active_config', configToSave.id);
-      
-      setSavedConfigs(configs);
-      setActiveConfigId(configToSave.id);
-      setConfig(configToSave);
-      
-      showNotification('success', 'Configuración guardada exitosamente');
-    } catch (error) {
-      console.error('Error al guardar:', error);
-      showNotification('error', 'Error al guardar la configuración');
-    }
-  };
-
-  const handleSaveAs = () => {
-    if (!configNameInput.trim()) {
-      showNotification('error', 'Por favor ingrese un nombre para la configuración');
-      return;
-    }
-
     if (!validateForm()) {
       showNotification('error', 'Por favor complete todos los campos requeridos correctamente');
       return;
     }
 
-    try {
-      const newConfig = {
-        ...config,
-        id: Date.now().toString(),
-        name: configNameInput
-      };
+    if (config.id) {
+      await updateConfiguration();
+    } else {
+      await saveConfiguration();
+    }
+  };
 
-      const configs = [...savedConfigs, newConfig];
+  const saveConfiguration = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const payload = { ...config };
+      delete payload.id;
+
+      const response = await api.post(API_BASE_URL, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const savedConfig = response.data;
+
+      if (!response.ok) {
+        throw new Error('Error al guardar la configuración');
+      }
       
-      window.localStorage.setItem('smartbill_configs', JSON.stringify(configs));
-      window.localStorage.setItem('smartbill_active_config', newConfig.id);
+      // Actualizar lista de configuraciones
+      await loadConfigurations();
       
-      setSavedConfigs(configs);
-      setActiveConfigId(newConfig.id);
-      setConfig(newConfig);
-      setShowSaveAsDialog(false);
-      setConfigNameInput('');
+      // Establecer como activa
+      setActiveConfigId(savedConfig.id);
+      localStorage.setItem('smartbill_active_config_id', savedConfig.id.toString());
       
-      showNotification('success', `Configuración "${configNameInput}" guardada exitosamente`);
+      showNotification('success', 'Configuración guardada exitosamente');
     } catch (error) {
       console.error('Error al guardar:', error);
       showNotification('error', 'Error al guardar la configuración');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadConfiguration = (configId) => {
-    const selectedConfig = savedConfigs.find(c => c.id === configId);
-    if (selectedConfig) {
-      setConfig(selectedConfig);
-      setActiveConfigId(configId);
-      window.localStorage.setItem('smartbill_active_config', configId);
-      setShowConfigList(false);
-      showNotification('success', `Configuración "${selectedConfig.name}" cargada`);
+  const updateConfiguration = async () => {
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const payload = { ...config };
+
+      const response = await api.put(`${API_BASE_URL}/${config.id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al actualizar la configuración');
+      }
+
+      await loadConfigurations();
+      showNotification('success', 'Configuración actualizada exitosamente');
+    } catch (error) {
+      console.error('Error al actualizar:', error);
+      showNotification('error', 'Error al actualizar la configuración');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteConfiguration = (configId) => {
+  const loadConfiguration = (selectedConfig) => {
+    setConfig(selectedConfig);
+    setActiveConfigId(selectedConfig.id);
+    localStorage.setItem('smartbill_active_config_id', selectedConfig.id.toString());
+    setShowConfigList(false);
+    showNotification('success', `Configuración "${selectedConfig.configName}" cargada`);
+  };
+
+  const deleteConfiguration = async (configId) => {
     if (savedConfigs.length === 1) {
       showNotification('error', 'No puedes eliminar la única configuración');
       return;
     }
 
-    if (window.confirm('¿Estás seguro de eliminar esta configuración?')) {
-      const configs = savedConfigs.filter(c => c.id !== configId);
-      
-      window.localStorage.setItem('smartbill_configs', JSON.stringify(configs));
-      
-      if (activeConfigId === configId) {
-        const newActive = configs[0];
-        setConfig(newActive);
-        setActiveConfigId(newActive.id);
-        window.localStorage.setItem('smartbill_active_config', newActive.id);
+    if (!window.confirm('¿Estás seguro de eliminar esta configuración?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = getAuthToken();
+      const response = await api.delete(`${API_BASE_URL}/${configId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al eliminar la configuración');
       }
-      
-      setSavedConfigs(configs);
-      showNotification('success', 'Configuración eliminada');
+
+      // Si la configuración eliminada era la activa, cargar otra
+      if (activeConfigId === configId) {
+        localStorage.removeItem('smartbill_active_config_id');
+      }
+
+      await loadConfigurations();
+      showNotification('success', 'Configuración eliminada exitosamente');
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      showNotification('error', 'Error al eliminar la configuración');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleNewConfig = () => {
     setConfig({
       id: null,
-      name: 'Nueva Configuración',
-      companyName: '',
-      taxId: '',
-      address: '',
-      phone: '',
-      email: '',
-      tax: '19',
-      invoiceFooter: ''
+      configName: '',
+      nit: '',
+      contact: '',
+      footer: '',
+      paperWidth: 80,
+      fontSize: 12,
+      logoType: 'IMAGE',
+      qrType: 'PAYMENT'
     });
     setActiveConfigId(null);
     setErrors({});
@@ -262,6 +290,7 @@ const ConfigGlobal = () => {
               <button
                 onClick={() => setShowConfigList(!showConfigList)}
                 className="bg-purple-500 text-white px-4 py-2 rounded transition-colors duration-300 text-sm font-semibold hover:bg-purple-600 flex items-center gap-2"
+                disabled={loading}
               >
                 <span>📋</span>
                 Mis Configuraciones ({savedConfigs.length})
@@ -269,9 +298,18 @@ const ConfigGlobal = () => {
               <button
                 onClick={handleNewConfig}
                 className="bg-green-500 text-white px-4 py-2 rounded transition-colors duration-300 text-sm font-semibold hover:bg-green-600 flex items-center gap-2"
+                disabled={loading}
               >
                 <span>➕</span>
                 Nueva
+              </button>
+              <button
+                onClick={loadConfigurations}
+                className="bg-gray-500 text-white px-4 py-2 rounded transition-colors duration-300 text-sm font-semibold hover:bg-gray-600 flex items-center gap-2"
+                disabled={loading}
+              >
+                <span>🔄</span>
+                Recargar
               </button>
             </div>
           </div>
@@ -279,79 +317,78 @@ const ConfigGlobal = () => {
           {showConfigList && (
             <div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
               <h3 className="font-semibold mb-3 text-gray-800">Configuraciones Guardadas:</h3>
-              <div className="space-y-2">
-                {savedConfigs.map(cfg => (
-                  <div
-                    key={cfg.id}
-                    className={`flex justify-between items-center p-3 rounded ${
-                      activeConfigId === cfg.id ? 'bg-blue-100 border-2 border-blue-500' : 'bg-white border border-gray-300'
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-800">{cfg.name}</div>
-                      <div className="text-sm text-gray-600">{cfg.companyName}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      {activeConfigId !== cfg.id && (
+              {loading ? (
+                <div className="text-center py-4 text-gray-500">Cargando...</div>
+              ) : savedConfigs.length === 0 ? (
+                <div className="text-center py-4 text-gray-500">No hay configuraciones guardadas</div>
+              ) : (
+                <div className="space-y-2">
+                  {savedConfigs.map(cfg => (
+                    <div
+                      key={cfg.id}
+                      className={`flex justify-between items-center p-3 rounded ${
+                        activeConfigId === cfg.id ? 'bg-blue-100 border-2 border-blue-500' : 'bg-white border border-gray-300'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-800">{cfg.configName}</div>
+                        <div className="text-sm text-gray-600">NIT: {cfg.nit}</div>
+                        <div className="text-xs text-gray-500">
+                          {cfg.createdAt && new Date(cfg.createdAt).toLocaleString('es-ES')}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {activeConfigId !== cfg.id && (
+                          <button
+                            onClick={() => loadConfiguration(cfg)}
+                            className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                            disabled={loading}
+                          >
+                            Cargar
+                          </button>
+                        )}
+                        {activeConfigId === cfg.id && (
+                          <span className="bg-green-500 text-white px-3 py-1 rounded text-sm">
+                            ✓ Activa
+                          </span>
+                        )}
                         <button
-                          onClick={() => loadConfiguration(cfg.id)}
-                          className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                          onClick={() => deleteConfiguration(cfg.id)}
+                          className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                          disabled={loading}
                         >
-                          Cargar
+                          Eliminar
                         </button>
-                      )}
-                      {activeConfigId === cfg.id && (
-                        <span className="bg-green-500 text-white px-3 py-1 rounded text-sm">
-                          ✓ Activa
-                        </span>
-                      )}
-                      <button
-                        onClick={() => deleteConfiguration(cfg.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                      >
-                        Eliminar
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-blue-800">Configuración Actual:</span>
-              <span className="text-blue-600">{config.name || 'Sin nombre'}</span>
-              {activeConfigId && (
+          {activeConfigId && (
+            <div className="mb-4 p-3 bg-blue-50 rounded border border-blue-200">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-blue-800">Configuración Actual:</span>
+                <span className="text-blue-600">{config.configName || 'Sin nombre'}</span>
                 <span className="ml-auto text-xs bg-green-500 text-white px-2 py-1 rounded">ACTIVA</span>
-              )}
+              </div>
             </div>
-          </div>
+          )}
           
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block mb-2 font-semibold text-gray-800">
-                Nombre de la Configuración
+                Nombre de la Configuración *
               </label>
               <input
                 type="text"
-                value={config.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                value={config.configName}
+                onChange={(e) => handleInputChange('configName', e.target.value)}
                 placeholder="Ej: Configuración Sede Principal"
-                className="w-full px-4 py-3 border border-gray-300 rounded transition-colors duration-300 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block mb-2 font-semibold text-gray-800">
-                Nombre de Empresa *
-              </label>
-              <input
-                type="text"
-                value={config.companyName}
-                onChange={(e) => handleInputChange('companyName', e.target.value)}
-                placeholder="Ingrese el nombre de su empresa"
-                className={getInputClassName('companyName')}
+                className={getInputClassName('configName')}
+                disabled={loading}
               />
             </div>
 
@@ -361,68 +398,26 @@ const ConfigGlobal = () => {
               </label>
               <input
                 type="text"
-                value={config.taxId}
-                onChange={(e) => handleInputChange('taxId', e.target.value)}
+                value={config.nit}
+                onChange={(e) => handleInputChange('nit', e.target.value)}
                 placeholder="Ingrese su NIT o RUT"
-                className={getInputClassName('taxId')}
+                className={getInputClassName('nit')}
+                disabled={loading}
               />
             </div>
 
             <div>
               <label className="block mb-2 font-semibold text-gray-800">
-                Dirección de Empresa *
-              </label>
-              <input
-                type="text"
-                value={config.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                placeholder="Ingrese la dirección de su empresa"
-                className={getInputClassName('address')}
-              />
-            </div>
-
-            <div>
-              <label className="block mb-2 font-semibold text-gray-800">
-                Teléfono Empresa *
-              </label>
-              <input
-                type="tel"
-                value={config.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="Ingrese el teléfono de contacto"
-                className={getInputClassName('phone')}
-              />
-            </div>
-
-            <div>
-              <label className="block mb-2 font-semibold text-gray-800">
-                Correo Empresa *
+                Email de Contacto *
               </label>
               <input
                 type="email"
-                value={config.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
+                value={config.contact}
+                onChange={(e) => handleInputChange('contact', e.target.value)}
                 placeholder="Ingrese el correo electrónico"
-                className={getInputClassName('email')}
+                className={getInputClassName('contact')}
+                disabled={loading}
               />
-            </div>
-
-            <div>
-              <label className="block mb-2 font-semibold text-gray-800">
-                IVA (Impuesto) *
-              </label>
-              <div className="flex items-center">
-                <input
-                  type="number"
-                  value={config.tax}
-                  onChange={(e) => handleInputChange('tax', e.target.value)}
-                  placeholder="19"
-                  min="0"
-                  max="100"
-                  className={`${getInputClassName('tax')} w-32 mr-3`}
-                />
-                <span className="text-lg font-semibold">%</span>
-              </div>
             </div>
 
             <div>
@@ -430,65 +425,105 @@ const ConfigGlobal = () => {
                 Pie de Página para Factura
               </label>
               <textarea
-                value={config.invoiceFooter}
-                onChange={(e) => handleInputChange('invoiceFooter', e.target.value)}
-                placeholder="Ingrese el texto para el pie de página de sus facturas (términos y condiciones, notas, etc.)"
+                value={config.footer}
+                onChange={(e) => handleInputChange('footer', e.target.value)}
+                placeholder="Ingrese el texto para el pie de página de sus facturas"
                 className="w-full px-4 py-3 border border-gray-300 rounded transition-colors duration-300 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500 resize-vertical min-h-24"
                 rows="4"
+                disabled={loading}
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-2 font-semibold text-gray-800">
+                  Ancho de Papel (mm)
+                </label>
+                <input
+                  type="number"
+                  value={config.paperWidth}
+                  onChange={(e) => handleInputChange('paperWidth', parseInt(e.target.value))}
+                  placeholder="80"
+                  min="58"
+                  max="80"
+                  className={getInputClassName('paperWidth')}
+                  disabled={loading}
+                />
+                <span className="text-xs text-gray-500">58mm - 80mm</span>
+              </div>
+
+              <div>
+                <label className="block mb-2 font-semibold text-gray-800">
+                  Tamaño de Fuente
+                </label>
+                <input
+                  type="number"
+                  value={config.fontSize}
+                  onChange={(e) => handleInputChange('fontSize', parseInt(e.target.value))}
+                  placeholder="12"
+                  min="8"
+                  max="16"
+                  className={getInputClassName('fontSize')}
+                  disabled={loading}
+                />
+                <span className="text-xs text-gray-500">8px - 16px</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block mb-2 font-semibold text-gray-800">
+                  Tipo de Logo
+                </label>
+                <select
+                  value={config.logoType}
+                  onChange={(e) => handleInputChange('logoType', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded transition-colors duration-300 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500"
+                  disabled={loading}
+                >
+                  <option value="IMAGE">Imagen</option>
+                  <option value="TEXT">Texto</option>
+                  <option value="NONE">Ninguno</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-2 font-semibold text-gray-800">
+                  Tipo de QR
+                </label>
+                <select
+                  value={config.qrType}
+                  onChange={(e) => handleInputChange('qrType', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded transition-colors duration-300 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 focus:border-blue-500"
+                  disabled={loading}
+                >
+                  <option value="PAYMENT">Pago</option>
+                  <option value="INVOICE">Factura</option>
+                  <option value="NONE">Ninguno</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex justify-end gap-4 pt-6">
               <button
                 type="button"
-                onClick={() => setShowSaveAsDialog(true)}
-                className="bg-purple-500 text-white px-6 py-3 rounded transition-colors duration-300 text-base font-semibold hover:bg-purple-600"
+                onClick={handleNewConfig}
+                className="bg-gray-500 text-white px-6 py-3 rounded transition-colors duration-300 text-base font-semibold hover:bg-gray-600"
+                disabled={loading}
               >
-                Guardar Como...
+                Limpiar
               </button>
               <button
-                onClick={handleSubmit}
-                className="bg-blue-500 text-white px-6 py-3 rounded transition-colors duration-300 text-base font-semibold hover:bg-blue-600"
+                type="submit"
+                className="bg-blue-500 text-white px-6 py-3 rounded transition-colors duration-300 text-base font-semibold hover:bg-blue-600 disabled:bg-blue-300"
+                disabled={loading}
               >
-                {config.id ? 'Actualizar Configuración' : 'Guardar Configuración'}
+                {loading ? 'Guardando...' : config.id ? 'Actualizar Configuración' : 'Guardar Configuración'}
               </button>
             </div>
-          </div>
+          </form>
         </div>
       </div>
-
-      {showSaveAsDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">Guardar Como Nueva Configuración</h3>
-            <input
-              type="text"
-              value={configNameInput}
-              onChange={(e) => setConfigNameInput(e.target.value)}
-              placeholder="Nombre de la configuración"
-              className="w-full px-4 py-3 border border-gray-300 rounded mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoFocus
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowSaveAsDialog(false);
-                  setConfigNameInput('');
-                }}
-                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveAs}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-              >
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {notification.show && (
         <div className={`fixed top-5 right-5 px-6 py-4 rounded font-semibold text-white z-50 shadow-lg ${
@@ -515,6 +550,10 @@ const ConfigGlobal = () => {
           .flex.justify-end button {
             width: 100%;
             margin-bottom: 10px;
+          }
+          
+          .grid-cols-2 {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
