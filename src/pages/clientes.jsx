@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { Users, Plus, Search, Filter, Edit2, Trash2, X, AlertCircle, CheckCircle, ChevronLeft, ChevronRight, Mail, MapPin, Phone, AlertTriangle } from 'lucide-react';
 import api from '../api/apiClient';
 
 const ClientManagement = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [modalMode, setModalMode] = useState('create');
   
   const [pagination, setPagination] = useState({
     totalPages: 0,
@@ -54,7 +57,6 @@ const ClientManagement = () => {
         active: filters.active === '' ? null : filters.active === 'true'
       };
 
-      // Remover campos null
       Object.keys(searchPayload).forEach(key => {
         if (searchPayload[key] === null || searchPayload[key] === '') {
           delete searchPayload[key];
@@ -209,15 +211,20 @@ const ClientManagement = () => {
     }
   };
 
-  const handleDeleteClient = async (clientId) => {
-    if (!window.confirm('¿Estás seguro de eliminar este cliente?')) {
-      return;
-    }
+  const handleDeleteClick = (client) => {
+    setClientToDelete(client);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!clientToDelete) return;
 
     setLoading(true);
     try {
-      await api.delete(`client/v1/api/${clientId}`);
+      await api.delete(`client/v1/api/${clientToDelete.id}`);
       showNotification('success', 'Cliente eliminado exitosamente');
+      setShowDeleteModal(false);
+      setClientToDelete(null);
       searchClients(pagination.currentPage);
     } catch (error) {
       console.error('Error al eliminar cliente:', error);
@@ -235,94 +242,163 @@ const ClientManagement = () => {
   };
 
   const getInputClassName = (field) => {
-    const baseClass = "w-full px-4 py-2 border rounded transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500";
+    const baseClass = "w-full px-4 py-2 border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:scale-[1.01]";
     return errors[field] 
-      ? `${baseClass} border-red-500`
+      ? `${baseClass} border-red-500 bg-red-50 animate-shake`
       : `${baseClass} border-gray-300`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800">
-      <header className="bg-blue-500 text-white py-5 mb-6 shadow-md">
-        <div className="max-w-7xl mx-auto px-5">
-          <div className="flex justify-between items-center">
-            <div className="text-2xl font-bold">SmartBill - Clientes</div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-slideDown {
+          animation: slideDown 0.3s ease-out;
+        }
+        
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+        
+        .animate-shake {
+          animation: shake 0.3s ease-in-out;
+        }
+        
+        .animate-scaleIn {
+          animation: scaleIn 0.3s ease-out;
+        }
+        
+        .card-appear {
+          animation: scaleIn 0.4s ease-out;
+        }
+      `}</style>
 
-      <div className="max-w-7xl mx-auto px-5">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-blue-500">Gestión de Clientes</h1>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition-colors flex items-center gap-2"
-              >
-                <span>🔍</span>
-                Filtros
-              </button>
-              <button
-                onClick={handleCreateClient}
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors flex items-center gap-2"
-              >
-                <span>➕</span>
-                Nuevo Cliente
-              </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden animate-fadeIn">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Users className="h-8 w-8 text-white animate-pulse" />
+                <div>
+                  <h1 className="text-2xl font-bold text-white">Gestión de Clientes</h1>
+                  <p className="text-purple-100 text-sm">Administra tu cartera de clientes</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 transition-all duration-200 hover:scale-105 font-medium shadow-md"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filtros
+                </button>
+                <button
+                  onClick={handleCreateClient}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 hover:scale-105 font-medium shadow-md"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nuevo Cliente
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* Filters Panel */}
           {showFilters && (
-            <div className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <h3 className="font-semibold mb-4 text-gray-800">Filtros de Búsqueda</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">ID</label>
+            <div className="border-b border-gray-200 bg-gray-50 p-6 animate-slideDown">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Filtros de Búsqueda</h3>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="transform transition-all duration-200 hover:scale-105">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">ID</label>
                   <input
                     type="number"
                     value={filters.id}
                     onChange={(e) => handleFilterChange('id', e.target.value)}
                     placeholder="Buscar por ID"
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                   />
                 </div>
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">Nombre</label>
+                <div className="transform transition-all duration-200 hover:scale-105">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">Nombre</label>
                   <input
                     type="text"
                     value={filters.name}
                     onChange={(e) => handleFilterChange('name', e.target.value)}
                     placeholder="Buscar por nombre"
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                   />
                 </div>
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">Dirección</label>
+                <div className="transform transition-all duration-200 hover:scale-105">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">Dirección</label>
                   <input
                     type="text"
                     value={filters.address}
                     onChange={(e) => handleFilterChange('address', e.target.value)}
                     placeholder="Buscar por dirección"
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                   />
                 </div>
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">Contacto</label>
+                <div className="transform transition-all duration-200 hover:scale-105">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">Contacto</label>
                   <input
                     type="text"
                     value={filters.contact}
                     onChange={(e) => handleFilterChange('contact', e.target.value)}
                     placeholder="Buscar por contacto"
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                   />
                 </div>
-                <div>
-                  <label className="block mb-2 text-sm font-semibold text-gray-700">Estado</label>
+                <div className="transform transition-all duration-200 hover:scale-105">
+                  <label className="block mb-2 text-sm font-medium text-gray-700">Estado</label>
                   <select
                     value={filters.active}
                     onChange={(e) => handleFilterChange('active', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
                   >
                     <option value="">Todos</option>
                     <option value="true">Activo</option>
@@ -333,136 +409,173 @@ const ClientManagement = () => {
               <div className="flex justify-end gap-3 mt-4">
                 <button
                   onClick={handleClearFilters}
-                  className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-200 hover:scale-105"
                 >
                   Limpiar
                 </button>
                 <button
                   onClick={handleApplyFilters}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 hover:scale-105"
                 >
+                  <Search className="h-4 w-4" />
                   Aplicar Filtros
                 </button>
               </div>
             </div>
           )}
 
-          <div className="mb-4 text-sm text-gray-600">
-            Mostrando {clients.length} de {pagination.totalElements} clientes
-          </div>
+          {/* Content */}
+          <div className="p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Mostrando <span className="font-semibold">{clients.length}</span> de <span className="font-semibold">{pagination.totalElements}</span> clientes
+              </p>
+            </div>
 
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              <p className="mt-4 text-gray-600">Cargando clientes...</p>
-            </div>
-          ) : clients.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p className="text-xl mb-2">👥</p>
-              <p>No se encontraron clientes</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b-2 border-gray-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Nombre</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Email</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Dirección</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Contacto</th>
-                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Estado</th>
-                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {clients.map((client) => (
-                      <tr key={client.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-900">{client.id}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{client.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{client.email || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{client.address || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{client.contact || '-'}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            client.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {client.active ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              onClick={() => handleEditClient(client)}
-                              className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleDeleteClient(client.id)}
-                              className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {loading ? (
+              <div className="text-center py-16">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent"></div>
+                <p className="mt-4 text-gray-600 font-medium">Cargando clientes...</p>
               </div>
+            ) : clients.length === 0 ? (
+              <div className="text-center py-16 animate-fadeIn">
+                <Users className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-600 text-lg font-medium">No se encontraron clientes</p>
+                <p className="text-gray-500 text-sm mt-2">Intenta ajustar los filtros o crear uno nuevo</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {clients.map((client, index) => (
+                    <div
+                      key={client.id}
+                      className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all duration-300 hover:scale-105 hover:border-purple-300 card-appear"
+                      style={{ animationDelay: `${index * 0.05}s` }}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0 h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Users className="h-6 w-6 text-purple-600" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{client.name}</h3>
+                            <span className="text-xs text-gray-500">ID: {client.id}</span>
+                          </div>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          client.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {client.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
 
-              {pagination.totalPages > 1 && (
-                <div className="mt-6 flex justify-center gap-2">
-                  <button
-                    onClick={() => searchClients(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage === 0}
-                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Anterior
-                  </button>
-                  <span className="px-4 py-2 text-gray-700">
-                    Página {pagination.currentPage + 1} de {pagination.totalPages}
-                  </span>
-                  <button
-                    onClick={() => searchClients(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage >= pagination.totalPages - 1}
-                    className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Siguiente
-                  </button>
+                      <div className="space-y-2 mb-4">
+                        {client.email && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Mail className="h-4 w-4 text-purple-600" />
+                            <span className="truncate">{client.email}</span>
+                          </div>
+                        )}
+                        {client.address && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <MapPin className="h-4 w-4 text-purple-600" />
+                            <span className="truncate">{client.address}</span>
+                          </div>
+                        )}
+                        {client.contact && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Phone className="h-4 w-4 text-purple-600" />
+                            <span>{client.contact}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditClient(client)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-all duration-200 hover:scale-105 text-sm font-medium"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(client)}
+                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 hover:scale-105 text-sm font-medium"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </>
-          )}
+
+                {pagination.totalPages > 1 && (
+                  <div className="mt-6 flex items-center justify-between animate-fadeIn">
+                    <p className="text-sm text-gray-600">
+                      Página {pagination.currentPage + 1} de {pagination.totalPages}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => searchClients(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage === 0}
+                        className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => searchClients(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage >= pagination.totalPages - 1}
+                        className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-110"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Modal Create/Edit */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
-            <div className="bg-blue-500 text-white px-6 py-4 rounded-t-lg">
-              <h2 className="text-xl font-bold">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-scaleIn">
+            <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">
                 {modalMode === 'create' ? 'Crear Nuevo Cliente' : 'Editar Cliente'}
               </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-white hover:bg-purple-800 rounded p-1 transition-all duration-200 hover:scale-110"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block mb-2 font-semibold text-gray-700">
-                  Nombre *
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  Nombre del Cliente <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={clientForm.name}
                   onChange={(e) => handleFormChange('name', e.target.value)}
-                  placeholder="Nombre del cliente"
+                  placeholder="Ej: Juan Pérez"
                   className={getInputClassName('name')}
                 />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1 animate-slideDown">
+                    <AlertCircle className="h-4 w-4" />
+                    Este campo es obligatorio
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-2 font-semibold text-gray-700">
+                <label className="block mb-2 text-sm font-medium text-gray-700">
                   Email {modalMode === 'create' && '(Opcional)'}
                 </label>
                 <input
@@ -472,72 +585,134 @@ const ClientManagement = () => {
                   placeholder="correo@ejemplo.com"
                   className={getInputClassName('email')}
                 />
+                {errors.email && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1 animate-slideDown">
+                    <AlertCircle className="h-4 w-4" />
+                    Email inválido
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-2 font-semibold text-gray-700">
-                  Dirección {modalMode === 'create' && '*'}
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  Dirección {modalMode === 'create' && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
                   value={clientForm.address}
                   onChange={(e) => handleFormChange('address', e.target.value)}
-                  placeholder="Dirección del cliente"
+                  placeholder="Calle 123 #45-67"
                   className={getInputClassName('address')}
                 />
+                {errors.address && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1 animate-slideDown">
+                    <AlertCircle className="h-4 w-4" />
+                    Este campo es obligatorio
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="block mb-2 font-semibold text-gray-700">
-                  Contacto {modalMode === 'create' && '*'}
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  Contacto {modalMode === 'create' && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
                   value={clientForm.contact}
                   onChange={(e) => handleFormChange('contact', e.target.value)}
-                  placeholder="Teléfono o contacto"
+                  placeholder="+57 300 123 4567"
                   className={getInputClassName('contact')}
                 />
+                {errors.contact && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1 animate-slideDown">
+                    <AlertCircle className="h-4 w-4" />
+                    Este campo es obligatorio
+                  </p>
+                )}
               </div>
 
               {modalMode === 'edit' && (
-                <div>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={clientForm.active}
-                      onChange={(e) => handleFormChange('active', e.target.checked)}
-                      className="w-4 h-4"
-                    />
-                    <span className="font-semibold text-gray-700">Cliente Activo</span>
+                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    id="active"
+                    checked={clientForm.active}
+                    onChange={(e) => handleFormChange('active', e.target.checked)}
+                    className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+                  />
+                  <label htmlFor="active" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    Cliente Activo
                   </label>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 rounded-b-lg">
+            <div className="flex justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 hover:scale-105 font-medium"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSubmitForm}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors disabled:bg-blue-300"
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 hover:scale-105 disabled:bg-purple-400 disabled:cursor-not-allowed font-medium"
               >
-                {loading ? 'Guardando...' : 'Guardar'}
+                {loading ? 'Guardando...' : 'Guardar Cliente'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && clientToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full animate-scaleIn">
+            <div className="p-6">
+              <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full mb-4">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                ¿Eliminar Cliente?
+              </h3>
+              <p className="text-gray-600 text-center mb-4">
+                Estás a punto de eliminar el cliente <span className="font-semibold">"{clientToDelete.name}"</span>. Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setClientToDelete(null);
+                }}
+                className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 hover:scale-105 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 hover:scale-105 disabled:bg-red-400 disabled:cursor-not-allowed font-medium"
+              >
+                {loading ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification */}
       {notification.show && (
-        <div className={`fixed top-5 right-5 px-6 py-4 rounded font-semibold text-white z-50 shadow-lg ${
+        <div className={`fixed top-5 right-5 px-6 py-4 rounded-lg font-medium text-white z-50 shadow-lg flex items-center gap-3 animate-slideDown ${
           notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
         }`}>
+          {notification.type === 'success' ? (
+            <CheckCircle className="h-5 w-5" />
+          ) : (
+            <AlertCircle className="h-5 w-5" />
+          )}
           {notification.message}
         </div>
       )}

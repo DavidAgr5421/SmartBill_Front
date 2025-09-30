@@ -59,6 +59,8 @@ export default function ReportManagement() {
           size: pageSize
         }
       });
+
+      console.log(response.data)
       
       if (response.data.content) {
         setReports(response.data.content);
@@ -407,11 +409,11 @@ export default function ReportManagement() {
                             </div>
                             <div>
                               <h3 className="font-semibold text-gray-900">
-                                Usuario ID: {report.userId?.id || report.userId}
+                                ID Reporte: {report.id || report.userId}   ||  Usuario ( {report.userId?.id} ) : {report.userId?.name || report.userId}
                               </h3>
                               <p className="text-sm text-gray-500 flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {formatDate(report.createdAt)}
+                                {Date(report.createdAt).split('GMT')[0].trim()}
                               </p>
                             </div>
                           </div>
@@ -427,7 +429,7 @@ export default function ReportManagement() {
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
-                              onClick={() => deleteReport(report.createdAt)}
+                              onClick={() => deleteReport(report.id)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -522,7 +524,7 @@ export default function ReportManagement() {
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                             />
                             <button
-                              onClick={() => updateReport(report.createdAt)}
+                              onClick={() => updateReport(report.id)}
                               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                             >
                               <Save className="h-4 w-4" />
