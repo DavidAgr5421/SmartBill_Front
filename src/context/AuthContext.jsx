@@ -92,6 +92,7 @@ export const AuthProvider = ({ children }) => {
   // Nuevo: Recargar privilegios manualmente
   const refreshPrivileges = async () => {
     if (rolId) {
+      console.log(rolId, "Obtenido el rol id en refresh de privileges")
       await loadUserPrivileges(rolId);
     }
   };
@@ -99,11 +100,6 @@ export const AuthProvider = ({ children }) => {
   const login = (jwtToken, type, userData) => {
     setToken(jwtToken);
     setTokenType(type || "Bearer");
-    
-    console.log("Lo que se obtiene en el token al auth");
-    console.log(jwtToken);
-    console.log(type);
-    console.log(userData);
     
     // Extraer información del token
     const decodedToken = decodeToken(jwtToken);
@@ -114,11 +110,6 @@ export const AuthProvider = ({ children }) => {
     const userRole = userData?.role || decodedToken?.role;
     const userName = userData?.name || decodedToken?.name;
     const userRolId = userData?.rolId || decodedToken?.rolId;
-    
-    console.log("ID extraído:", userId);
-    console.log("Role extraído:", userRole);
-    console.log("Name extraído:", userName);
-    console.log("RolId extraído:", userRolId);
     
     if (userId) setId(userId);
     if (userRole) setRole(userRole);

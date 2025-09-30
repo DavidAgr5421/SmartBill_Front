@@ -1,4 +1,5 @@
 import Sidebar from "../components/sidebar";
+import PrivilegesDebugger from "../context/privilegesDebugger";
 
 export default function MainLayout({ children }) {
   return (
@@ -9,6 +10,7 @@ export default function MainLayout({ children }) {
       <Sidebar />
       <main className="flex-1 p-6 bg-gray-100 min-h-screen">
         {children}
+        {process.env.NODE_ENV === 'development' && <PrivilegesDebugger />}
       </main>
     </div>
   );

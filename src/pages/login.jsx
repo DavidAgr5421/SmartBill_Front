@@ -56,14 +56,16 @@ const LoginPage = () => {
 
       //ROL 
       const role = response.data.role || "USER";
-      console.log(response.data)
 
       login(jwtToken, type, { 
         role: response.data.rolName,
-        roleId: response.data.roleId,
+        rolId: response.data.rolId,
         id: response.data.id,
         name: response.data.name
        });
+
+       console.log("TOKEN CREADO PARA LOGIN:")
+       console.log(response.data)
 
       if (role === "ADMIN") {
         navigate("/admin")
