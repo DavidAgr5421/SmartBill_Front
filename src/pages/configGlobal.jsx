@@ -27,48 +27,52 @@ const ConfigGlobal = () => {
 
   const [errors, setErrors] = useState({});
 
-  const API_BASE_URL = 'http://localhost:8080/config/v1/api';
-
   useEffect(() => {
     loadConfigurations();
   }, []);
 
-  const getAuthToken = () => {
-    // Obtener el token de autenticación desde tu contexto o localStorage
-    return localStorage.getItem('authToken') || '';
-  };
-
   const loadConfigurations = async () => {
     setLoading(true);
     try {
-      const token = getAuthToken();
-      const response = await api.get(API_BASE_URL, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          page: 0,
-          size: 1000
-        }
-      });
+      const response = await api.get('config/v1/api');
+      console.log(response.data)
       const configs = response.data.content || [];
+      
       setSavedConfigs(configs);
+      
+      if (configs.length === 0) {
+        // No hay configuraciones en la DB
+        setConfig({
+          id: null,
+          configName: '',
+          nit: '',
+          contact: '',
+          footer: '',
+          paperWidth: 80,
+          fontSize: 12,
+          logoType: 'IMAGE',
+          qrType: 'PAYMENT'
+        });
+        setActiveConfigId(null);
+        localStorage.removeItem('smartbill_active_config_id');
+        return; // Salimos del flujo
+      }
 
       const savedActiveId = localStorage.getItem('smartbill_active_config_id');
+      let activeConfig;
       
-      if (savedActiveId && configs.length > 0) {
-        const activeConfig = configs.find(c => c.id?.toString() === savedActiveId);
-        if (activeConfig) {
-          setConfig(activeConfig);
-          setActiveConfigId(activeConfig.id);
-        } else if (configs.length > 0) {
-          setConfig(configs[0]);
-          setActiveConfigId(configs[0].id);
-          localStorage.setItem('smartbill_active_config_id', configs[0].id.toString());
-        }
-      } else if (configs.length > 0) {
-        setConfig(configs[0]);
-        setActiveConfigId(configs[0].id);
-        localStorage.setItem('smartbill_active_config_id', configs[0].id.toString());
+      if (savedActiveId) {
+        activeConfig = configs.find(c => c.id != null && c.id.toString() === savedActiveId);
       }
+
+      if (!activeConfig) {
+        activeConfig = configs[0]; // Tomamos la primera si no existe activa
+        localStorage.setItem('smartbill_active_config_id', activeConfig.id?.toString() || '');
+      }
+
+      setConfig(activeConfig);
+      setActiveConfigId(activeConfig.id);
+
     } catch (error) {
       console.error('Error al cargar configuraciones:', error);
       showNotification('error', 'Error al cargar las configuraciones desde el servidor');
@@ -142,25 +146,26 @@ const ConfigGlobal = () => {
   const saveConfiguration = async () => {
     setLoading(true);
     try {
-      const token = getAuthToken();
-      const payload = { ...config };
-      delete payload.id;
+      const payload = {
+        configName: config.configName,
+        contact: config.contact,
+        nit: config.nit,
+        footer: config.footer || '',
+        paperWidth: config.paperWidth,
+        fontSize: config.fontSize,
+        logoType: config.logoType,
+        qrType: config.qrType
+      };
 
-      const response = await api.post(API_BASE_URL, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
+      const response = await api.post('config/v1/api', payload);
       const savedConfig = response.data;
-
-      if (!response.ok) {
-        throw new Error('Error al guardar la configuración');
-      }
       
-      // Actualizar lista de configuraciones
       await loadConfigurations();
       
-      // Establecer como activa
       setActiveConfigId(savedConfig.id);
+
+      console.log(savedConfig);
+
       localStorage.setItem('smartbill_active_config_id', savedConfig.id.toString());
       
       showNotification('success', 'Configuración guardada exitosamente');
@@ -175,17 +180,19 @@ const ConfigGlobal = () => {
   const updateConfiguration = async () => {
     setLoading(true);
     try {
-      const token = getAuthToken();
-      const payload = { ...config };
+      const payload = {
+        configName: config.configName,
+        contact: config.contact,
+        nit: config.nit,
+        footer: config.footer,
+        paperWidth: config.paperWidth,
+        fontSize: config.fontSize,
+        logoType: config.logoType,
+        qrType: config.qrType
+      };
 
-      const response = await api.put(`${API_BASE_URL}/${config.id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (!response.ok) {
-        throw new Error('Error al actualizar la configuración');
-      }
-
+      await api.put(`config/v1/api/${config.id}`, payload);
+      
       await loadConfigurations();
       showNotification('success', 'Configuración actualizada exitosamente');
     } catch (error) {
@@ -216,16 +223,8 @@ const ConfigGlobal = () => {
 
     setLoading(true);
     try {
-      const token = getAuthToken();
-      const response = await api.delete(`${API_BASE_URL}/${configId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`config/v1/api/${configId}`);
 
-      if (!response.ok) {
-        throw new Error('Error al eliminar la configuración');
-      }
-
-      // Si la configuración eliminada era la activa, cargar otra
       if (activeConfigId === configId) {
         localStorage.removeItem('smartbill_active_config_id');
       }
@@ -377,7 +376,7 @@ const ConfigGlobal = () => {
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
             <div>
               <label className="block mb-2 font-semibold text-gray-800">
                 Nombre de la Configuración *
@@ -434,7 +433,7 @@ const ConfigGlobal = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-2 font-semibold text-gray-800">
                   Ancho de Papel (mm)
@@ -470,7 +469,7 @@ const ConfigGlobal = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block mb-2 font-semibold text-gray-800">
                   Tipo de Logo
@@ -504,7 +503,7 @@ const ConfigGlobal = () => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-4 pt-6">
+            <div className="flex flex-col md:flex-row justify-end gap-4 pt-6">
               <button
                 type="button"
                 onClick={handleNewConfig}
@@ -514,14 +513,14 @@ const ConfigGlobal = () => {
                 Limpiar
               </button>
               <button
-                type="submit"
+                onClick={handleSubmit}
                 className="bg-blue-500 text-white px-6 py-3 rounded transition-colors duration-300 text-base font-semibold hover:bg-blue-600 disabled:bg-blue-300"
                 disabled={loading}
               >
                 {loading ? 'Guardando...' : config.id ? 'Actualizar Configuración' : 'Guardar Configuración'}
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
 
@@ -541,19 +540,6 @@ const ConfigGlobal = () => {
           
           .bg-white {
             padding: 20px;
-          }
-          
-          .flex.justify-end {
-            flex-direction: column;
-          }
-          
-          .flex.justify-end button {
-            width: 100%;
-            margin-bottom: 10px;
-          }
-          
-          .grid-cols-2 {
-            grid-template-columns: 1fr;
           }
         }
       `}</style>

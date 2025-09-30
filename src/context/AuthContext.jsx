@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import api from "../api/apiClient";
 
 const AuthContext = createContext(null);
 
@@ -23,6 +24,18 @@ export const AuthProvider = ({ children }) => {
   const [role, setRole] = useState(localStorage.getItem("role"));
   const [name, setName] = useState(localStorage.getItem("name"));
   const [id, setId] = useState(localStorage.getItem("id"));
+  const [rolId, setRolId] = useState(localStorage.getItem("rolId"));
+  
+  // Nuevo: estado para privilegios
+  const [userPrivileges, setUserPrivileges] = useState(null);
+  const [privilegesLoading, setPrivilegesLoading] = useState(false);
+
+  // Cargar privilegios cuando cambie el rolId
+  useEffect(() => {
+    if (rolId && token) {
+      loadUserPrivileges(rolId);
+    }
+  }, [rolId, token]);
 
   // Guardar datos en localStorage cuando cambien
   useEffect(() => {
@@ -32,23 +45,66 @@ export const AuthProvider = ({ children }) => {
       if (role) localStorage.setItem("role", role);
       if (name) localStorage.setItem("name", name);
       if (id) localStorage.setItem("id", id);
+      if (rolId) localStorage.setItem("rolId", rolId);
     } else {
       localStorage.removeItem("token");
       localStorage.removeItem("token_type");
       localStorage.removeItem("role");
       localStorage.removeItem("name");
       localStorage.removeItem("id");
+      localStorage.removeItem("rolId");
     }
-  }, [token, tokenType, role, name, id]);
+  }, [token, tokenType, role, name, id, rolId]);
+
+  // Nuevo: Cargar privilegios del usuario
+  const loadUserPrivileges = async (userRolId) => {
+    setPrivilegesLoading(true);
+    try {
+      const response = await api.get(`/users-rol/${userRolId}/privileges`);
+      setUserPrivileges(response.data);
+      console.log("Privilegios cargados:", response.data);
+    } catch (error) {
+      console.error('Error cargando privilegios:', error);
+      setUserPrivileges(null);
+    } finally {
+      setPrivilegesLoading(false);
+    }
+  };
+
+  // Nuevo: Verificar si el usuario tiene un permiso específico
+  const hasPermission = (permission) => {
+    if (!userPrivileges) return false;
+    return userPrivileges[permission] === true;
+  };
+
+  // Nuevo: Verificar si el usuario tiene al menos uno de varios permisos
+  const hasAnyPermission = (permissions) => {
+    if (!Array.isArray(permissions)) return false;
+    return permissions.some(permission => hasPermission(permission));
+  };
+
+  // Nuevo: Verificar si el usuario tiene todos los permisos especificados
+  const hasAllPermissions = (permissions) => {
+    if (!Array.isArray(permissions)) return false;
+    return permissions.every(permission => hasPermission(permission));
+  };
+
+  // Nuevo: Recargar privilegios manualmente
+  const refreshPrivileges = async () => {
+    if (rolId) {
+      await loadUserPrivileges(rolId);
+    }
+  };
 
   const login = (jwtToken, type, userData) => {
     setToken(jwtToken);
     setTokenType(type || "Bearer");
     
-    console.log("Lo que se obtiene en el token al auth")
-    console.log(jwtToken)
-    console.log(type)
-    console.log(userData)
+    console.log("Lo que se obtiene en el token al auth");
+    console.log(jwtToken);
+    console.log(type);
+    console.log(userData);
+    
     // Extraer información del token
     const decodedToken = decodeToken(jwtToken);
     console.log("Token decodificado:", decodedToken);
@@ -57,14 +113,17 @@ export const AuthProvider = ({ children }) => {
     const userId = userData?.id || decodedToken?.sub || decodedToken?.userId || decodedToken?.id;
     const userRole = userData?.role || decodedToken?.role;
     const userName = userData?.name || decodedToken?.name;
+    const userRolId = userData?.rolId || decodedToken?.rolId;
     
     console.log("ID extraído:", userId);
     console.log("Role extraído:", userRole);
     console.log("Name extraído:", userName);
+    console.log("RolId extraído:", userRolId);
     
     if (userId) setId(userId);
     if (userRole) setRole(userRole);
     if (userName) setName(userName);
+    if (userRolId) setRolId(userRolId);
   };
 
   const logout = () => {
@@ -73,10 +132,28 @@ export const AuthProvider = ({ children }) => {
     setName(null);
     setId(null);
     setRole(null);
+    setRolId(null);
+    setUserPrivileges(null);
   };
 
   return (
-    <AuthContext.Provider value={{ token, tokenType, name, role, id, login, logout }}>
+    <AuthContext.Provider value={{ 
+      token, 
+      tokenType, 
+      name, 
+      role, 
+      id, 
+      rolId,
+      login, 
+      logout,
+      // Nuevas propiedades para permisos
+      userPrivileges,
+      privilegesLoading,
+      hasPermission,
+      hasAnyPermission,
+      hasAllPermissions,
+      refreshPrivileges
+    }}>
       {children}
     </AuthContext.Provider>
   );

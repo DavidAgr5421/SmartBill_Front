@@ -12,6 +12,7 @@ const Sidebar = () => {
   const menuItems = [
     { id: "admin-bills", icon: "fa-solid fa-money-bills", text: "Administrar Facturas", path: "/admin-bills" },
     { id: "admin-users", icon: "fa-solid fa-user-tie", text: "Administrar Usuarios", path: "/admin-users" },
+    { id: "admin-rols", icon: "fa-solid fa-users-gear", text: "Administrar Roles", path: "/admin-rols" },
     { id: "perfil", icon: "fa-solid fa-user", text: "Perfil", path: "/perfil" },
     { id: "nueva-factura", icon: "fa-solid fa-file-invoice", text: "Nueva Factura", path: "/factura" },
     { id: "reportes", icon: "fa-solid fa-chart-bar", text: "Reportes de Facturas", path: "/reportes" },

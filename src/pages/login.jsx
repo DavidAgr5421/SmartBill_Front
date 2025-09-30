@@ -60,6 +60,7 @@ const LoginPage = () => {
 
       login(jwtToken, type, { 
         role: response.data.rolName,
+        roleId: response.data.roleId,
         id: response.data.id,
         name: response.data.name
        });

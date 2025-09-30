@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/apiClient";
 import { useAuth } from "../context/AuthContext";
+import BillHistory from "../layouts/billHistory";
 
 // Componente de Toast personalizado
 const Toast = ({ message, type, onClose }) => {
@@ -402,6 +403,8 @@ export default function Profile() {
                             </div>
                         </div>
                     </div>
+                    <BillHistory>  
+                    </BillHistory>
                 </div>
             </div>
 

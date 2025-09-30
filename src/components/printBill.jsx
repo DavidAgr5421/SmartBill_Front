@@ -1,19 +1,14 @@
 import { useRef, useState, useEffect } from 'react';
+import api from '../api/apiClient';
 
 export default function PrintBill({ bill, billDetails, onClose }) {
     const printRef = useRef();
     const [printConfig, setPrintConfig] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const API_BASE_URL = 'http://localhost:8080/config/v1/api';
-
     useEffect(() => {
         loadActiveConfig();
     }, []);
-
-    const getAuthToken = () => {
-        return localStorage.getItem('authToken') || '';
-    };
 
     const loadActiveConfig = async () => {
         try {
@@ -24,21 +19,8 @@ export default function PrintBill({ bill, billDetails, onClose }) {
                 return;
             }
 
-            const token = getAuthToken();
-            const response = await fetch(`${API_BASE_URL}/${activeConfigId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                await loadDefaultConfig();
-                return;
-            }
-
-            const config = await response.json();
-            setPrintConfig(config);
+            const response = await api.get(`config/v1/api/${activeConfigId}`);
+            setPrintConfig(response.data);
             setLoading(false);
         } catch (error) {
             console.error("Error al cargar configuración:", error);
@@ -48,22 +30,11 @@ export default function PrintBill({ bill, billDetails, onClose }) {
 
     const loadDefaultConfig = async () => {
         try {
-            const token = getAuthToken();
-            const response = await fetch(API_BASE_URL, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.content && data.content.length > 0) {
-                    setPrintConfig(data.content[0]);
-                    localStorage.setItem('smartbill_active_config_id', data.content[0].id.toString());
-                } else {
-                    setPrintConfig(getDefaultConfig());
-                }
+            const response = await api.get('config/v1/api');
+            
+            if (response.data.content && response.data.content.length > 0) {
+                setPrintConfig(response.data.content[0]);
+                localStorage.setItem('smartbill_active_config_id', response.data.content[0].id.toString());
             } else {
                 setPrintConfig(getDefaultConfig());
             }

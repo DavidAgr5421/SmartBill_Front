@@ -74,9 +74,7 @@ const ObservationModal = ({ isOpen, onClose, observation, onSave }) => {
 export default function NewBill() {
     const { token } = useAuth();
     const [toast, setToast] = useState(null);
-    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-
     const [users, setUsers] = useState([]);
     const [clients, setClients] = useState([]);
     const [products, setProducts] = useState([]);
@@ -489,9 +487,9 @@ export default function NewBill() {
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 >
                                     <option value="">Seleccionar método</option>
-                                    <option value="EFECTIVO">💵 Efectivo</option>
-                                    <option value="TARJETA">💳 Tarjeta</option>
-                                    <option value="TRANSFERENCIA">🏦 Transferencia</option>
+                                    <option value="CASH">💵 Efectivo</option>
+                                    <option value="CREDIT_CARD">💳 Tarjeta</option>
+                                    <option value="TRANSFER">🏦 Transferencia</option>
                                 </select>
                             </div>
                         </div>
