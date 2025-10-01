@@ -16,6 +16,7 @@ import ReportManagement from "./pages/reportes";
 
 import {ProtectedRoute} from "./context/ProtectedRoute";
 
+
 export default function App() {
   return (
     <Router>

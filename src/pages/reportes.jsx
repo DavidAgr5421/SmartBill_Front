@@ -59,8 +59,6 @@ export default function ReportManagement() {
           size: pageSize
         }
       });
-
-      console.log(response.data)
       
       if (response.data.content) {
         setReports(response.data.content);
@@ -180,16 +178,6 @@ export default function ReportManagement() {
       currency: 'COP',
       minimumFractionDigits: 0
     }).format(value);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
   };
 
   return (

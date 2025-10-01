@@ -75,8 +75,6 @@ export default function CreateBillModal({ isOpen, onClose, onCreate, users, clie
                 }
             );
 
-            console.log("Factura creada: ", response.data);
-
             setSuccess(true);
 
             if(onCreate) onCreate(response.data);

@@ -27,7 +27,7 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
         try {
             setLoading(true);
             const response = await api.post("/recovery", { email });
-            console.log(response)
+
             setSuccess(response.data.message || "Correo enviado correctamente.");
         } catch (err) {
             setError(err.response?.data || "No se pudo enviar el correo.");

@@ -64,9 +64,6 @@ const LoginPage = () => {
         name: response.data.name
        });
 
-       console.log("TOKEN CREADO PARA LOGIN:")
-       console.log(response.data)
-
       if (role === "ADMIN") {
         navigate("/admin")
       } else {

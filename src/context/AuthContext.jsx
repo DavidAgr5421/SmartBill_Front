@@ -62,9 +62,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.get(`/users-rol/${userRolId}/privileges`);
       setUserPrivileges(response.data);
-      console.log("Privilegios cargados:", response.data);
     } catch (error) {
-      console.error('Error cargando privilegios:', error);
       setUserPrivileges(null);
     } finally {
       setPrivilegesLoading(false);
@@ -92,7 +90,6 @@ export const AuthProvider = ({ children }) => {
   // Nuevo: Recargar privilegios manualmente
   const refreshPrivileges = async () => {
     if (rolId) {
-      console.log(rolId, "Obtenido el rol id en refresh de privileges")
       await loadUserPrivileges(rolId);
     }
   };
@@ -103,7 +100,6 @@ export const AuthProvider = ({ children }) => {
     
     // Extraer información del token
     const decodedToken = decodeToken(jwtToken);
-    console.log("Token decodificado:", decodedToken);
     
     // Establecer el ID desde el token o desde userData
     const userId = userData?.id || decodedToken?.sub || decodedToken?.userId || decodedToken?.id;

@@ -43,7 +43,6 @@ export default function DeleteBillModal({ isOpen, onClose, bill, onDelete, token
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            console.log("Data recibida de User: ",response.data)
             setUserData(response.data);
         }catch(err){
             console.error("Error fetching user data: ",err);
@@ -63,7 +62,6 @@ export default function DeleteBillModal({ isOpen, onClose, bill, onDelete, token
             });
 
                         
-            console.log("Data recibida de Client: ",response.data)
             setClientData(response.data);
         }catch(err){
             console.error("Error fetching client data: ",err);
